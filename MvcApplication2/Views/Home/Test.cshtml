@@ -1,0 +1,39 @@
+﻿@model MvcApplication2.Models.IndexPage
+@{
+    ViewBag.Title = "Index";
+}
+
+<h2>Index</h2>
+<ul>
+    @if (Model.Direcciones != null)
+    {
+        foreach (var item in Model.Direcciones)
+        {
+            <li>
+                <span>@item.Calle</span>
+                <span>@item.Referencia.ToString()</span>
+            </li>
+        }
+    }
+    
+    @if (Model.DireccionesQM != null)
+    {
+        foreach (var item in Model.DireccionesQM)
+        {
+            <li>
+                <span>@item.Calle</span>
+                <span>@item.Referencia.ToString()</span>
+            </li>
+        }
+    }
+    @if (Model.DireccionesQM2 != null)
+    {
+        foreach (var item in Model.DireccionesQM2)
+        {
+            <li>
+                <span>@item.Calle</span>
+                <span>@item.Referencia.ToString()</span>
+            </li>
+        }
+    }
+</ul>
