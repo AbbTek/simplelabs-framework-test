@@ -13,6 +13,7 @@ namespace MvcApplication2.Models.QueryModel
         public DireccionQM2() { }
         public string Calle { get; set; }
         public DbGeometry Referencia { get; set; }
+        public DateTime Fecha { get; set; }
 
     }
 }

@@ -12,13 +12,13 @@ namespace Domain
     {
         public DomainContext() : base("FrameworkTest") { }
 
-        public DbSet<DireccionEF> Direcciones { get; set; }
+        public DbSet<AddressEF> Address { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
             modelBuilder.Conventions.Remove<PluralizingTableNameConvention>();
-            modelBuilder.Entity<DireccionEF>()
-                .ToTable("Direccion");
+            modelBuilder.Entity<AddressEF>()
+                .ToTable("Address");
         }
     }
 }

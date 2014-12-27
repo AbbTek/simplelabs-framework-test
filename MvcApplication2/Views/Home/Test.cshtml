@@ -10,8 +10,10 @@
         foreach (var item in Model.Direcciones)
         {
             <li>
-                <span>@item.Calle</span>
-                <span>@item.Referencia.ToString()</span>
+                <span>@item.Street</span>
+                <span>@item.Coordinates.X</span>
+                <span>@item.Coordinates.Y</span>
+                <span>@item.Date</span>
             </li>
         }
     }
@@ -21,8 +23,10 @@
         foreach (var item in Model.DireccionesQM)
         {
             <li>
-                <span>@item.Calle</span>
-                <span>@item.Referencia.ToString()</span>
+                <span>@item.Street</span>
+                <span>@item.Coordinates.X</span>
+                <span>@item.Coordinates.Y</span>
+                <span>@item.Date</span>
             </li>
         }
     }
@@ -32,7 +36,21 @@
         {
             <li>
                 <span>@item.Calle</span>
-                <span>@item.Referencia.ToString()</span>
+                <span>@item.Referencia.XCoordinate</span>
+                <span>@item.Referencia.YCoordinate</span>
+                <span>@item.Fecha</span>
+            </li>
+        }
+    }
+    @if (Model.DireccionesMongo != null)
+    {
+        foreach (var item in Model.DireccionesMongo)
+        {
+            <li>
+                <span>@item.Street</span>
+                <span>@item.Coordinates.X</span>
+                <span>@item.Coordinates.Y</span>
+                <span>@item.Date</span>
             </li>
         }
     }

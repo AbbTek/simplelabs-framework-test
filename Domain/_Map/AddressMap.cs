@@ -8,15 +8,17 @@ using System.Threading.Tasks;
 
 namespace Domain._Map
 {
-    public class DireccionMap : ClassMap<Direccion>
+    public class AddressMap : ClassMap<Address>
     {
-        public DireccionMap()
+        public AddressMap()
         {
             Cache.ReadOnly().Region("Long");
             Id(x => x.ID).GeneratedBy.Identity();
-            Map(x => x.Calle);
-            Map(x => x.Numero);
-            Map(x => x.Referencia)
+            Map(x => x.Street);
+            Map(x => x.ZipCode);
+            Map(x => x.Date);
+            Map(x => x.TextReference);
+            Map(x => x.Coordinates)
                 .CustomType<GeometryType>();
         }
     }

@@ -66,6 +66,12 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>C:\Windows\assembly\GAC_MSIL\Microsoft.SqlServer.Types\10.0.0.0__89845dcd8080cc91\Microsoft.SqlServer.Types.dll</HintPath>
     </Reference>
+    <Reference Include="MongoDB.Bson">
+      <HintPath>..\packages\mongocsharpdriver.1.9.2\lib\net35\MongoDB.Bson.dll</HintPath>
+    </Reference>
+    <Reference Include="MongoDB.Driver">
+      <HintPath>..\packages\mongocsharpdriver.1.9.2\lib\net35\MongoDB.Driver.dll</HintPath>
+    </Reference>
     <Reference Include="NetTopologySuite, Version=1.13.3.0, Culture=neutral, PublicKeyToken=f580a05016ebada1, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\NetTopologySuite.1.13.3.2\lib\net45\NetTopologySuite.dll</HintPath>
@@ -169,7 +175,7 @@
     <None Include="NHibernate.config" />
     <Compile Include="Models\IndexPage.cs" />
     <Compile Include="Models\QueryModel\DireccionQM2.cs" />
-    <Compile Include="Models\QueryModel\DireccionQM.cs" />
+    <Compile Include="Models\QueryModel\AddressQM.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <None Include="Scripts\jquery-2.1.1.intellisense.js" />
     <Content Include="Scripts\jquery-2.1.1.js" />

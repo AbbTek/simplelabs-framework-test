@@ -18,6 +18,10 @@ using NHibernate.Linq;
 using System.Threading.Tasks;
 using System.Data;
 using System.Data.Entity;
+using MongoDB.Driver;
+using MongoDB.Driver.Linq;
+using MongoDB.Driver.Builders;
+
 
 namespace MvcApplication2.Controllers
 {
@@ -25,6 +29,7 @@ namespace MvcApplication2.Controllers
     {
         private static string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["FrameworkTest"].ConnectionString;
         DomainContext context = new DomainContext();
+        private static Random ran = new Random();
 
         //[OutputCache(Duration=3600)]
         public ActionResult Test(string id)
@@ -37,44 +42,32 @@ namespace MvcApplication2.Controllers
                 case "nhnormal":
                     page.Direcciones = ListNHNormal();
                     break;
-                case "nhnormalcache":
-                    page.Direcciones = ListNHNormalCache();
-                    break;
                 case "nhquerymodel":
                     page.DireccionesQM = ListNHQueryModel();
-                    break;
-                case "nhquerymodelcache":
-                    page.DireccionesQM = ListNHQueryModelCache();
                     break;
                 case "nhsql":
                     page.DireccionesQM = ListNHSql();
                     break;
-                case "nhsqlcache":
-                    page.DireccionesQM = ListNHSqlCache();
-                    break;
                 case "nhhql":
                     page.DireccionesQM = ListNHHql();
-                    break;
-                case "nhhqlcache":
-                    page.DireccionesQM = ListNHHqlCache();
                     break;
                 case "nhqueryover":
                     page.DireccionesQM = ListNHQueryOver();
                     break;
-                case "nhqueryovercache":
-                    page.DireccionesQM = ListNHQueryOverCache();
-                    break;
                 case "nhlinq":
                     page.DireccionesQM = ListNHLinq();
-                    break;
-                case "nhlinqcache":
-                    page.DireccionesQM = ListNHLinqCache();
                     break;
                 case "sql":
                     page.DireccionesQM = ListSql();
                     break;
                 case "ef":
                     page.DireccionesQM2 = EFNormal();
+                    break;
+                case "mongodb":
+                    page.DireccionesMongo = Mongodb();
+                    break;
+                case "mongodblinq":
+                    page.DireccionesMongo = MongodbLinq();
                     break;
                 default:
                     break;
@@ -90,160 +83,109 @@ namespace MvcApplication2.Controllers
         public async Task<IndexPage> List()
         {
             IndexPage page = new IndexPage();
-            var list = await (from dic in context.Direcciones
+            var list = await (from dic in context.Address
                               select new DireccionQM2
                               {
-                                  Calle = dic.Calle,
-                                  Referencia = dic.Referencia
-                              }).ToListAsync();
+                                  Calle = dic.Street,
+                                  Referencia = dic.Coordinates
+                              })
+                              .Take(15)
+                              .ToListAsync();
             page.DireccionesQM2 = list;
             return page;
         }
 
-        private static IList<Direccion> ListNHNormal()
+        private static IList<Address> ListNHNormal()
         {
             var session = SessionFactory.GetSession();
-            var criteria = session.CreateCriteria<Direccion>();
-            return criteria.List<Direccion>();
+            var criteria = session.CreateCriteria<Address>();
+            criteria.SetMaxResults(15);
+            criteria.Add(Expression.Eq(Projections.Property<Address>(m => m.ZipCode), ran.Next(5000).ToString()));
+            return criteria.List<Address>();
         }
 
-        private static IList<Direccion> ListNHNormalCache()
+        private static IList<AddressQM> ListNHQueryModel()
         {
             var session = SessionFactory.GetSession();
-            var criteria = session.CreateCriteria<Direccion>();
-            criteria.SetCacheable(true);
-            criteria.SetCacheRegion("long");
-            return criteria.List<Direccion>();
-        }
-
-        private static IList<DireccionQM> ListNHQueryModel()
-        {
-            var session = SessionFactory.GetSession();
-            var criteria = session.CreateCriteria<Direccion>();
+            var criteria = session.CreateCriteria<Address>();
             criteria.SetProjection(Projections.ProjectionList()
-                    .Add(Projections.Property<Direccion>(d => d.Calle), "Calle")
-                    .Add(Projections.Property<Direccion>(d => d.Referencia), "Referencia"));
-            criteria.SetResultTransformer(Transformers.AliasToBean<DireccionQM>());
-            return criteria.List<DireccionQM>();
+                    .Add(Projections.Property<Address>(d => d.Street), "Street")
+                    .Add(Projections.Property<Address>(d => d.Coordinates), "Coordinates")
+                    .Add(Projections.Property<Address>(d => d.Date), "Date"));
+            criteria.SetResultTransformer(Transformers.AliasToBean<AddressQM>());
+            criteria.SetMaxResults(15);
+            criteria.Add(Expression.Eq(Projections.Property<Address>(m => m.ZipCode), ran.Next(5000).ToString()));
+            return criteria.List<AddressQM>();
         }
 
-        private static IList<DireccionQM> ListNHQueryModelCache()
+        private static IList<AddressQM> ListNHSql()
         {
             var session = SessionFactory.GetSession();
-            var criteria = session.CreateCriteria<Direccion>();
-            criteria.SetProjection(Projections.ProjectionList()
-                    .Add(Projections.Property<Direccion>(d => d.Calle), "Calle")
-                    .Add(Projections.Property<Direccion>(d => d.Referencia), "Referencia"));
-            criteria.SetResultTransformer(Transformers.AliasToBean<DireccionQM>());
-            criteria.SetCacheable(true);
-            criteria.SetCacheRegion("long");
-            return criteria.List<DireccionQM>();
+            var sql = session.CreateSQLQuery("SELECT Street, Coordinates, Date FROM Address Where ZipCode = :ZipCode")
+                .AddScalar("Street", NHibernateUtil.String)
+                .AddScalar("Coordinates", NHibernateUtil.Custom(typeof(GeometryType)))
+                .AddScalar("Date", NHibernateUtil.Date);
+            sql.SetResultTransformer(Transformers.AliasToBean<AddressQM>());
+            sql.SetString("ZipCode", ran.Next(5000).ToString());
+            sql.SetMaxResults(15);
+            return sql.List<AddressQM>();
         }
 
-        private static IList<DireccionQM> ListNHSql()
+        private static IList<AddressQM> ListNHHql()
         {
             var session = SessionFactory.GetSession();
-            var sql = session.CreateSQLQuery("SELECT Calle, Referencia FROM Direccion")
-                .AddScalar("Calle", NHibernateUtil.String)
-                .AddScalar("Referencia", NHibernateUtil.Custom(typeof(GeometryType)));
-            sql.SetResultTransformer(Transformers.AliasToBean<DireccionQM>());
-            return sql.List<DireccionQM>();
+            var sql = session.CreateQuery("SELECT Street as Street, Coordinates as Coordinates, Date as Date FROM Address Where ZipCode = :ZipCode");
+            sql.SetResultTransformer(Transformers.AliasToBean<AddressQM>());
+            sql.SetMaxResults(15);
+            sql.SetString("ZipCode", ran.Next(5000).ToString());
+            return sql.List<AddressQM>();
         }
 
-        private static IList<DireccionQM> ListNHSqlCache()
+        private static IList<AddressQM> ListNHQueryOver()
         {
+            AddressQM direcionQM = null;
             var session = SessionFactory.GetSession();
-            var sql = session.CreateSQLQuery("SELECT Calle, Referencia FROM Direccion")
-                .AddScalar("Calle", NHibernateUtil.String)
-                .AddScalar("Referencia", NHibernateUtil.Custom(typeof(GeometryType)));
-            sql.SetResultTransformer(Transformers.AliasToBean<DireccionQM>());
-            sql.SetCacheable(true);
-            sql.SetCacheRegion("long");
-            return sql.List<DireccionQM>();
-        }
-
-        private static IList<DireccionQM> ListNHHql()
-        {
-            var session = SessionFactory.GetSession();
-            var sql = session.CreateQuery("SELECT Calle as Calle, Referencia as Referencia FROM Direccion");
-            sql.SetResultTransformer(Transformers.AliasToBean<DireccionQM>());
-            return sql.List<DireccionQM>();
-        }
-
-        private static IList<DireccionQM> ListNHHqlCache()
-        {
-            var session = SessionFactory.GetSession();
-            var sql = session.CreateQuery("SELECT Calle as Calle, Referencia as Referencia FROM Direccion");
-            sql.SetResultTransformer(Transformers.AliasToBean<DireccionQM>());
-            sql.SetCacheable(true);
-            sql.SetCacheRegion("long");
-            return sql.List<DireccionQM>();
-        }
-
-        private static IList<DireccionQM> ListNHQueryOver()
-        {
-            DireccionQM direcionQM = null;
-            var session = SessionFactory.GetSession();
-            return session.QueryOver<Direccion>()
+            return session.QueryOver<Address>()
                 .SelectList(list => list
-                    .Select(d => d.Calle).WithAlias(() => direcionQM.Calle)
-                    .Select(d => d.Referencia).WithAlias(() => direcionQM.Referencia))
-                .TransformUsing(Transformers.AliasToBean<DireccionQM>())
-                .List<DireccionQM>();
+                    .Select(d => d.Street).WithAlias(() => direcionQM.Street)
+                    .Select(d => d.Coordinates).WithAlias(() => direcionQM.Coordinates))
+                .TransformUsing(Transformers.AliasToBean<AddressQM>())
+                .Take(15)
+                .List<AddressQM>();
         }
 
-        private static IList<DireccionQM> ListNHQueryOverCache()
-        {
-            DireccionQM direcionQM = null;
-            var session = SessionFactory.GetSession();
-            return session.QueryOver<Direccion>()
-                .SelectList(list => list
-                    .Select(d => d.Calle).WithAlias(() => direcionQM.Calle)
-                    .Select(d => d.Referencia).WithAlias(() => direcionQM.Referencia))
-                .TransformUsing(Transformers.AliasToBean<DireccionQM>())
-                .Cacheable()
-                .CacheRegion("long")
-                .List<DireccionQM>();
-        }
-
-        private static IList<DireccionQM> ListNHLinq()
+        private static IList<AddressQM> ListNHLinq()
         {
             var session = SessionFactory.GetSession();
-            var l = (from d in session.Query<Direccion>()
-                     select new DireccionQM() { Calle = d.Calle, Referencia = d.Referencia })
-                         .ToList();
-            return l;
-        }
-
-        private static IList<DireccionQM> ListNHLinqCache()
-        {
-            var session = SessionFactory.GetSession();
-            var l = (from d in session.Query<Direccion>()
-                     select new DireccionQM() { Calle = d.Calle, Referencia = d.Referencia })
-                     .Cacheable()
-                     .CacheRegion("long")
+            var l = (from d in session.Query<Address>()
+                     select new AddressQM() { Street = d.Street, Coordinates = d.Coordinates })
+                     .Take(15)
                      .ToList();
             return l;
         }
 
-        private static IList<DireccionQM> ListSql()
+        private static IList<AddressQM> ListSql()
         {
-            var list = new List<DireccionQM>();
+            var list = new List<AddressQM>();
             using (SqlConnection con = new SqlConnection(connectionString))
             {
                 SqlCommand command = new SqlCommand(@"
-                SELECT [Calle]
-                      ,[Referencia]                      
-                  FROM [dbo].[Direccion]                
+                SELECT Top(15) [Street]
+                      ,[Coordinates]       
+                      ,[Date]               
+                  FROM [dbo].[Address]
+                  WHERE [ZipCode] = @ZipCode                
                 ", con);
                 con.Open();
+                command.Parameters.Add(new SqlParameter("ZipCode", ran.Next(5000).ToString()));
                 var r = command.ExecuteReader();
                 while (r.Read())
                 {
-                    list.Add(new DireccionQM()
+                    list.Add(new AddressQM()
                     {
-                        Calle = Convert.ToString(r[0]),
-                        Referencia = (IPoint)ToGeometry(r[1])
+                        Street = Convert.ToString(r[0]),
+                        Coordinates = (IPoint)ToGeometry(r[1]),
+                        Date = Convert.ToDateTime(r[2])
                     });
                 }
             }
@@ -252,19 +194,45 @@ namespace MvcApplication2.Controllers
 
         private IList<DireccionQM2> EFNormal()
         {
-            //using (var context = new DomainContext())
-            //{
-            var list = (from dic in context.Direcciones
+            var param = ran.Next(5000).ToString();
+            var list = (from dic in context.Address
+                        where dic.ZipCode == param
                         select new DireccionQM2
                          {
-                             Calle = dic.Calle,
-                             Referencia = dic.Referencia
-                         }).ToList();
+                             Calle = dic.Street,
+                             Referencia = dic.Coordinates,
+                             Fecha = dic.Date
+                         }).Take(15)
+                         .ToList();
             return list;
-            //}
         }
 
-        //[OutputCache(Duration = 10)]
+        private IList<AddressMongo> Mongodb()
+        {
+            MongoClient client = new MongoClient("mongodb://localhost"); 
+            MongoServer server = client.GetServer();
+            MongoDatabase test = server.GetDatabase("mydb");
+            var collection = test.GetCollection("address");
+
+            var query = Query.EQ("ZipCode", ran.Next(5000).ToString());
+            return collection.FindAs<AddressMongo>(query).SetLimit(15).ToList();
+        }
+
+        private IList<AddressMongo> MongodbLinq()
+        {
+            MongoClient client = new MongoClient("mongodb://localhost");
+            MongoServer server = client.GetServer();
+            MongoDatabase test = server.GetDatabase("mydb");
+            var collection = test.GetCollection("address");
+
+            var query =
+                 (from e in collection.AsQueryable<AddressMongo>()
+                  where e.ZipCode == ran.Next(5000).ToString()
+                  select e).Take(15);
+
+            return query.ToList();
+        }
+
         public ActionResult Index()
         {
             return View();
