@@ -21,7 +21,7 @@ namespace ConsoleTest
     class Program
     {
         private static string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["FrameworkTest"].ConnectionString;
-        
+
         static void Main(string[] args)
         {
             var bd = args[0];
@@ -141,27 +141,27 @@ namespace ConsoleTest
             }
         }
 
-    private static void ReadNHSQL(int total)
-    {
-        using (var session = SessionFactory.GetSession())
+        private static void ReadNHSQL(int total)
         {
-            using (var tx = session.BeginTransaction())
+            using (var session = SessionFactory.GetSession())
             {
-                Random ran = new Random(DateTime.Now.Millisecond);
-                Console.WriteLine();
-                for (int i = 0; i < total; i++)
+                using (var tx = session.BeginTransaction())
                 {
-                    Console.Write("\r{0:N2}%   ", (i + 1) / Convert.ToDouble(total) * 100);
-                    var sql = session.CreateQuery("SELECT Street, Coordinates, Date FROM Address Where ZipCode = :ZipCode");
-                    sql.SetMaxResults(15);
-                    sql.SetString("ZipCode", ran.Next(5000).ToString());
-                    var l = sql.List();
+                    Random ran = new Random(DateTime.Now.Millisecond);
+                    Console.WriteLine();
+                    for (int i = 0; i < total; i++)
+                    {
+                        Console.Write("\r{0:N2}%   ", (i + 1) / Convert.ToDouble(total) * 100);
+                        var sql = session.CreateQuery("SELECT Street, Coordinates, Date FROM Address Where ZipCode = :ZipCode");
+                        sql.SetMaxResults(15);
+                        sql.SetString("ZipCode", ran.Next(5000).ToString());
+                        var l = sql.List();
+                    }
+                    Console.WriteLine();
+                    tx.Commit();
                 }
-                Console.WriteLine();
-                tx.Commit();
             }
         }
-    }
 
         private static void ReadSQL(int total)
         {
@@ -211,20 +211,20 @@ namespace ConsoleTest
 
                 if (linq)
                 {
-var query =
-        (from e in collection.AsQueryable<AddressMongo>()
-        where e.ZipCode == ran.Next(5000).ToString()
-        select e
-        ).Take(15);
-var r = query.ToList();
+                    var query =
+                            (from e in collection.AsQueryable<AddressMongo>()
+                             where e.ZipCode == ran.Next(5000).ToString()
+                             select e
+                            ).Take(15);
+                    var r = query.ToList();
                 }
                 else
                 {
-var query = Query.EQ("ZipCode", ran.Next(5000).ToString());
-var r = collection.FindAs<AddressMongo>(query)
-    .SetLimit(15)
-    .SetFields("Street", "Coordinates", "Date")
-    .ToList();
+                    var query = Query.EQ("ZipCode", ran.Next(5000).ToString());
+                    var r = collection.FindAs<AddressMongo>(query)
+                        .SetLimit(15)
+                        .SetFields("Street", "Coordinates", "Date")
+                        .ToList();
                 }
             }
             Console.WriteLine();
