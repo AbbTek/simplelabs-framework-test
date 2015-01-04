@@ -1,4 +1,5 @@
 ﻿using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 //using MongoDB.Bson.Serialization.Attributes;
 //using MongoDB.Driver;
 using System;
@@ -21,12 +22,31 @@ namespace Domain
 
     public class XYPoint
     {
+        [BsonElement("type")]
+        public string Type
+        {
+            get
+            {
+                return "Point";
+            }
+        }
+
+        [BsonElement("coordinates")]
+        public double[] Coordinates
+        {
+            get;
+            set;
+        }
+
         public XYPoint(double x, double y)
         {
-            X = x;
-            Y = y;
+            Coordinates = new[] {x,y};
         }
-        public double X { get; set; }
-        public double Y { get; set; }
+
+        [BsonIgnore]
+        public double X { get { return Coordinates[0]; } }
+
+        [BsonIgnore]
+        public double Y { get { return Coordinates[1]; } }
     }
 }

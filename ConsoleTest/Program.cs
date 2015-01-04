@@ -15,6 +15,9 @@ using MongoDB.Driver.Builders;
 using System.Data.SqlClient;
 using GeoAPI.Geometries;
 using Microsoft.SqlServer.Types;
+using NHibernate.Spatial.Criterion;
+using NHibernate.Criterion;
+using MongoDB.Bson;
 
 namespace ConsoleTest
 {
@@ -41,24 +44,39 @@ namespace ConsoleTest
                 {
                     InsertSQL(total);
                 }
-                else if (bd == "sql" && (command == "r" || command == "r-direct"))
+                else if (bd == "sql" && (command == "r" || command == "r-direct" || command == "r-gis"))
                 {
                     if (command.Equals("r"))
                     {
                         ReadNHSQL(total);
                     }
-                    else
+                    else if (command.Equals("r-direct"))
                     {
                         ReadSQL(total);
+                    }
+                    else
+                    {
+                        ReadSQlGis(total);
                     }
                 }
                 else if (bd == "mongodb" && command == "i")
                 {
                     InsertMongo(total);
                 }
-                else if (bd == "mongodb" && (command == "r" || command == "r-linq"))
+                else if (bd == "mongodb" && (command == "r" || command == "r-linq" || command == "r-gis"))
                 {
-                    ReadMongo(total, command.Equals("r-linq"));
+                    if (command.Equals("r"))
+                    {
+                        ReadMongo(total);
+                    }
+                    else if (command.Equals("r-linq"))
+                    {
+                        ReadMongoLinq(total);
+                    }
+                    else
+                    {
+                        ReadMongoGis(total);
+                    }
                 }
 
                 watch.Stop();
@@ -71,7 +89,7 @@ namespace ConsoleTest
 
         private static void InsertMongo(int total)
         {
-            MongoClient client = new MongoClient("mongodb://localhost");
+            MongoClient client = new MongoClient(Utils.MongoDbConnection);
             MongoServer server = client.GetServer();
             MongoDatabase test = server.GetDatabase("mydb");
             var result = test.GetCollection("address");
@@ -195,9 +213,9 @@ namespace ConsoleTest
             }
         }
 
-        private static void ReadMongo(int total, bool linq)
+        private static void ReadMongo(int total)
         {
-            MongoClient client = new MongoClient("mongodb://localhost"); // connect to localhost
+            MongoClient client = new MongoClient(Utils.MongoDbConnection); // connect to localhost
             MongoServer server = client.GetServer();
             MongoDatabase test = server.GetDatabase("mydb");
             var collection = test.GetCollection("address");
@@ -209,25 +227,110 @@ namespace ConsoleTest
             {
                 Console.Write("\r{0:N2}%   ", (i + 1) / Convert.ToDouble(total) * 100);
 
-                if (linq)
-                {
-                    var query =
-                            (from e in collection.AsQueryable<AddressMongo>()
-                             where e.ZipCode == ran.Next(5000).ToString()
-                             select e
-                            ).Take(15);
-                    var r = query.ToList();
-                }
-                else
-                {
                     var query = Query.EQ("ZipCode", ran.Next(5000).ToString());
                     var r = collection.FindAs<AddressMongo>(query)
                         .SetLimit(15)
                         .SetFields("Street", "Coordinates", "Date")
                         .ToList();
-                }
             }
             Console.WriteLine();
+        }
+
+        private static void ReadMongoLinq(int total)
+        {
+            MongoClient client = new MongoClient(Utils.MongoDbConnection); // connect to localhost
+            MongoServer server = client.GetServer();
+            MongoDatabase test = server.GetDatabase("mydb");
+            var collection = test.GetCollection("address");
+
+            Random ran = new Random(DateTime.Now.Millisecond);
+            Console.WriteLine();
+
+            for (int i = 0; i < total; i++)
+            {
+                Console.Write("\r{0:N2}%   ", (i + 1) / Convert.ToDouble(total) * 100);
+
+
+                var query =
+                        (from e in collection.AsQueryable<AddressMongo>()
+                         where e.ZipCode == ran.Next(5000).ToString()
+                         select e
+                        ).Take(15);
+                var r = query.ToList();
+            }
+            Console.WriteLine();
+        }
+
+        public static void ReadMongoGis(int total)
+        {
+            MongoClient client = new MongoClient(Utils.MongoDbConnection); // connect to localhost
+            MongoServer server = client.GetServer();
+            MongoDatabase test = server.GetDatabase("mydb");
+            var collection = test.GetCollection("address");
+
+            Random ran = new Random(DateTime.Now.Millisecond);
+            Console.WriteLine();
+
+            for (int i = 0; i < total; i++)
+            {
+                Console.Write("\r{0:N2}%   ", (i + 1) / Convert.ToDouble(total) * 100);
+
+                var poly = GetRandomPolygon(ran);
+                var points = new BsonArray();
+
+                foreach (var item in poly.Coordinates)
+                {
+                    points.Add(new BsonArray(new[] { item.X, item.Y }));
+                }
+
+                BsonDocument polygon = new BsonDocument
+            {
+               { "type", "Polygon"},
+               { "coordinates", new BsonArray() {{points}}},
+            };
+
+                BsonDocument gemotry = new BsonDocument { 
+                { "$geometry" , polygon}
+            };
+
+                BsonDocument geoWithin = new BsonDocument { 
+                { "$geoWithin" , gemotry}
+            };
+
+                var r = collection.FindAs<AddressMongo>(new QueryDocument() { { "Coordinates", geoWithin } })
+                    .Count();
+            }
+            Console.WriteLine();
+        }
+
+        private static void ReadSQlGis(int total)
+        {
+            Console.WriteLine();
+            Random ran = new Random(DateTime.Now.Second);
+            for (int i = 0; i < total; i++)
+            {
+                Console.Write("\r{0:N2}%   ", (i + 1) / Convert.ToDouble(total) * 100);
+                var session = SessionFactory.GetSession();
+                var criteria = session.CreateCriteria<Address>();
+                criteria.Add(SpatialRestrictions.Within("Coordinates", GetRandomPolygon(ran)));
+                criteria.SetProjection(Projections.RowCount());
+                var count = criteria.UniqueResult();
+            }
+            Console.WriteLine();
+        }
+
+        private static IPolygon GetRandomPolygon(Random r)
+        {
+            var initX = r.Next(60, 70);
+            var initY = r.Next(20, 30);
+
+            var coodinates = new List<Coordinate>();
+            coodinates.Add(new Coordinate(initX, initY));
+            coodinates.Add(new Coordinate(initX - 0.5, initY));
+            coodinates.Add(new Coordinate(initX - 0.5, initY - 0.5));
+            coodinates.Add(new Coordinate(initX, initY - 0.5));
+            coodinates.Add(new Coordinate(initX, initY));
+            return new Polygon(new LinearRing(coodinates.ToArray()));
         }
 
         protected static IGeometry ToGeometry(object value)
@@ -243,183 +346,5 @@ namespace ConsoleTest
             sqlGeometry.Populate(builder);
             return builder.ConstructedGeometry;
         }
-    }
-
-    internal class NtsGeometrySink : IGeometrySink
-    {
-        private IGeometry geometry;
-        private int srid;
-        private readonly Stack<OpenGisGeometryType> types = new Stack<OpenGisGeometryType>();
-        private List<Coordinate> coordinates = new List<Coordinate>();
-        private readonly List<Coordinate[]> rings = new List<Coordinate[]>();
-        private readonly List<IGeometry> geometries = new List<IGeometry>();
-        private bool inFigure;
-
-        public IGeometry ConstructedGeometry
-        {
-            get { return this.geometry; }
-        }
-
-        private void AddCoordinate(double x, double y, double? z, double? m)
-        {
-            Coordinate coordinate;
-            if (z.HasValue)
-            {
-                coordinate = new Coordinate(x, y, z.Value);
-            }
-            else
-            {
-                coordinate = new Coordinate(x, y);
-            }
-            this.coordinates.Add(coordinate);
-        }
-
-        #region IGeometrySink Members
-
-        public void AddLine(double x, double y, double? z, double? m)
-        {
-            if (!this.inFigure)
-            {
-                throw new ApplicationException();
-            }
-            AddCoordinate(x, y, z, m);
-        }
-
-        public void BeginFigure(double x, double y, double? z, double? m)
-        {
-            if (this.inFigure)
-            {
-                throw new ApplicationException();
-            }
-            this.coordinates = new List<Coordinate>();
-            AddCoordinate(x, y, z, m);
-            this.inFigure = true;
-        }
-
-        public void BeginGeometry(OpenGisGeometryType type)
-        {
-            this.types.Push(type);
-        }
-
-        public void EndFigure()
-        {
-            OpenGisGeometryType type = this.types.Peek();
-            if (type == OpenGisGeometryType.Polygon)
-            {
-                this.rings.Add(this.coordinates.ToArray());
-            }
-            this.inFigure = false;
-        }
-
-        public void EndGeometry()
-        {
-            IGeometry geometry = null;
-
-            OpenGisGeometryType type = this.types.Pop();
-
-            switch (type)
-            {
-                case OpenGisGeometryType.Point:
-                    geometry = BuildPoint();
-                    break;
-                case OpenGisGeometryType.LineString:
-                    geometry = BuildLineString();
-                    break;
-                case OpenGisGeometryType.Polygon:
-                    geometry = BuildPolygon();
-                    break;
-                case OpenGisGeometryType.MultiPoint:
-                    geometry = BuildMultiPoint();
-                    break;
-                case OpenGisGeometryType.MultiLineString:
-                    geometry = BuildMultiLineString();
-                    break;
-                case OpenGisGeometryType.MultiPolygon:
-                    geometry = BuildMultiPolygon();
-                    break;
-                case OpenGisGeometryType.GeometryCollection:
-                    geometry = BuildGeometryCollection();
-                    break;
-            }
-
-            if (this.types.Count == 0)
-            {
-                this.geometry = geometry;
-                this.geometry.SRID = this.srid;
-            }
-            else
-            {
-                this.geometries.Add(geometry);
-            }
-        }
-
-        private IGeometry BuildPoint()
-        {
-            return new Point(this.coordinates[0]);
-        }
-
-        private LineString BuildLineString()
-        {
-            return new LineString(this.coordinates.ToArray());
-        }
-
-        private IGeometry BuildPolygon()
-        {
-            if (this.rings.Count == 0)
-            {
-                return Polygon.Empty;
-            }
-            ILinearRing shell = new LinearRing(this.rings[0]);
-            ILinearRing[] holes =
-                this.rings.GetRange(1, this.rings.Count - 1)
-                    .ConvertAll<ILinearRing>(delegate(Coordinate[] coordinates)
-                    {
-                        return new LinearRing(coordinates);
-                    }).ToArray();
-            this.rings.Clear();
-            return new Polygon(shell, holes);
-        }
-
-        private IGeometry BuildMultiPoint()
-        {
-            IPoint[] points =
-                this.geometries.ConvertAll<IPoint>(delegate(IGeometry g)
-                {
-                    return g as IPoint;
-                }).ToArray();
-            return new MultiPoint(points);
-        }
-
-        private IGeometry BuildMultiLineString()
-        {
-            ILineString[] lineStrings =
-                this.geometries.ConvertAll<ILineString>(delegate(IGeometry g)
-                {
-                    return g as ILineString;
-                }).ToArray();
-            return new MultiLineString(lineStrings);
-        }
-
-        private IGeometry BuildMultiPolygon()
-        {
-            IPolygon[] polygons =
-                this.geometries.ConvertAll<IPolygon>(delegate(IGeometry g)
-                {
-                    return g as IPolygon;
-                }).ToArray();
-            return new MultiPolygon(polygons);
-        }
-
-        private GeometryCollection BuildGeometryCollection()
-        {
-            return new GeometryCollection(this.geometries.ToArray());
-        }
-
-        public void SetSrid(int srid)
-        {
-            this.srid = srid;
-        }
-
-        #endregion
     }
 }

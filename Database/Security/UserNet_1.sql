@@ -1,0 +1,3 @@
+﻿CREATE LOGIN [UserNet]
+    WITH PASSWORD = N'vreyqyjconyiFceydeF|GjwwmsFT7_&#$!~<iJk;zkd?Prup', SID = 0x984955168462854D9FEF37742AD91055, DEFAULT_DATABASE = [FrameworkTest], DEFAULT_LANGUAGE = [us_english], CHECK_POLICY = OFF;
+

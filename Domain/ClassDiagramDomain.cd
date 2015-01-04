@@ -8,7 +8,7 @@
     </TypeIdentifier>
   </Class>
   <Class Name="Domain.AddressMongo">
-    <Position X="3.5" Y="1.25" Width="2" />
+    <Position X="3.25" Y="0.75" Width="2" />
     <TypeIdentifier>
       <HashCode>AAAAAAAAAAAAAAAAAABAAAAAIAAAAAABAQIAAAAAAAA=</HashCode>
       <FileName>AddressMongo.cs</FileName>
@@ -18,9 +18,9 @@
     </ShowAsAssociation>
   </Class>
   <Class Name="Domain.XYPoint">
-    <Position X="6.75" Y="1.25" Width="1.5" />
+    <Position X="6.5" Y="0.75" Width="2" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAA=</HashCode>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAQAAAAAAYAA=</HashCode>
       <FileName>AddressMongo.cs</FileName>
     </TypeIdentifier>
   </Class>

@@ -21,6 +21,8 @@ using System.Data.Entity;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using MongoDB.Driver.Builders;
+using MongoDB.Bson;
+using NHibernate.Spatial.Criterion;
 
 
 namespace MvcApplication2.Controllers
@@ -68,6 +70,30 @@ namespace MvcApplication2.Controllers
                     break;
                 case "mongodblinq":
                     page.DireccionesMongo = MongodbLinq();
+                    break;
+                case "mongodbgis":
+                    page.DireccionesMongo = MongodbGis(true, true);
+                    break;
+                case "mongodbgis-v":
+                    page.DireccionesMongo = MongodbGis(true, false);
+                    break;
+                case "mongodbgis-i":
+                    page.DireccionesMongo = MongodbGis(false, true);
+                    break;
+                case "mongodbgis-iv":
+                    page.DireccionesMongo = MongodbGis(false, false);
+                    break;
+                case "nhgis":
+                    page.Direcciones = NHGis(true, true);
+                    break;
+                case "nhgis-v":
+                    page.Direcciones = NHGis(true, false);
+                    break;
+                case "nhgis-i":
+                    page.Direcciones = NHGis(false, true);
+                    break;
+                case "nhgis-iv":
+                    page.Direcciones = NHGis(false, false);
                     break;
                 default:
                     break;
@@ -192,6 +218,16 @@ namespace MvcApplication2.Controllers
             return list;
         }
 
+private IList<Address> NHGis(bool useSquare, bool regularSize)
+{
+    Random ran = new Random(DateTime.Now.Second);
+    var session = SessionFactory.GetSession();
+    var criteria = session.CreateCriteria<Address>();
+    criteria.Add(SpatialRestrictions.Within("Coordinates", useSquare ?
+        GetRandomSquare(ran, regularSize) : GetRandomIrregularPolygon(ran, regularSize)));
+    return criteria.List<Address>();
+}
+
         private IList<DireccionQM2> EFNormal()
         {
             var param = ran.Next(5000).ToString();
@@ -209,7 +245,7 @@ namespace MvcApplication2.Controllers
 
         private IList<AddressMongo> Mongodb()
         {
-            MongoClient client = new MongoClient("mongodb://localhost"); 
+            MongoClient client = new MongoClient(Utils.MongoDbConnection);
             MongoServer server = client.GetServer();
             MongoDatabase test = server.GetDatabase("mydb");
             var collection = test.GetCollection("address");
@@ -220,7 +256,7 @@ namespace MvcApplication2.Controllers
 
         private IList<AddressMongo> MongodbLinq()
         {
-            MongoClient client = new MongoClient("mongodb://localhost");
+            MongoClient client = new MongoClient(Utils.MongoDbConnection);
             MongoServer server = client.GetServer();
             MongoDatabase test = server.GetDatabase("mydb");
             var collection = test.GetCollection("address");
@@ -232,6 +268,42 @@ namespace MvcApplication2.Controllers
 
             return query.ToList();
         }
+
+private IList<AddressMongo> MongodbGis(bool useSquare, bool regularSize)
+{
+    MongoClient client = new MongoClient(Utils.MongoDbConnection);
+    MongoServer server = client.GetServer();
+    MongoDatabase test = server.GetDatabase("mydb");
+    var collection = test.GetCollection("address");
+
+    Random ran = new Random(DateTime.Now.Millisecond);
+
+    var poly = useSquare ? GetRandomSquare(ran, regularSize) :
+        GetRandomIrregularPolygon(ran, regularSize);
+    var points = new BsonArray();
+
+    foreach (var item in poly.Coordinates)
+    {
+        points.Add(new BsonArray(new[] { item.X, item.Y }));
+    }
+
+    BsonDocument polygon = new BsonDocument
+    {
+        { "type", "Polygon"},
+        { "coordinates", new BsonArray() {{points}}},
+    };
+
+    BsonDocument gemotry = new BsonDocument { 
+        { "$geometry" , polygon}
+    };
+
+    BsonDocument geoWithin = new BsonDocument { 
+        { "$geoWithin" , gemotry}
+    };
+
+    return collection.FindAs<AddressMongo>(new QueryDocument() { { "Coordinates", geoWithin } })
+        .ToList();
+}
 
         public ActionResult Index()
         {
@@ -251,6 +323,47 @@ namespace MvcApplication2.Controllers
             sqlGeometry.Populate(builder);
             return builder.ConstructedGeometry;
         }
+
+private static IPolygon GetRandomSquare(Random r, bool regularSize)
+{
+    var initX = r.Next(60, 70) + r.NextDouble();
+    var initY = r.Next(20, 30) + r.NextDouble();
+    var distance = r.NextDouble();
+
+    if (regularSize)
+        distance = 0.2;
+
+    var coodinates = new List<Coordinate>();
+    coodinates.Add(new Coordinate(initX, initY));
+    coodinates.Add(new Coordinate(initX - distance, initY));
+    coodinates.Add(new Coordinate(initX - distance, initY - distance));
+    coodinates.Add(new Coordinate(initX, initY - distance));
+    coodinates.Add(new Coordinate(initX, initY));
+    return new Polygon(new LinearRing(coodinates.ToArray()));
+}
+
+private static IPolygon GetRandomIrregularPolygon(Random r, bool regularSize)
+{
+    var initX = r.Next(60, 70) + r.NextDouble();
+    var initY = r.Next(20, 30) + r.NextDouble();
+
+    var distance = r.NextDouble();
+    distance = distance > 0.5 ? 0.5 : distance;
+
+    if (regularSize)
+        distance = 0.15;
+
+    var coodinates = new List<Coordinate>();
+    coodinates.Add(new Coordinate(initX, initY));
+    coodinates.Add(new Coordinate(initX + distance * 2, initY - distance * 0.5));
+    coodinates.Add(new Coordinate(initX + distance * 3.05, initY - distance * 2));
+    coodinates.Add(new Coordinate(initX + distance * 1.5, initY - distance * 1.01));
+    coodinates.Add(new Coordinate(initX + distance * 1.05, initY - distance * 2.01));
+    coodinates.Add(new Coordinate(initX + distance * 2.05, initY - distance * 3.5));
+    coodinates.Add(new Coordinate(initX - distance * 0.5, initY - distance * 4));
+    coodinates.Add(new Coordinate(initX, initY));
+    return new Polygon(new LinearRing(coodinates.ToArray()));
+}
     }
 
     internal class NtsGeometrySink : IGeometrySink

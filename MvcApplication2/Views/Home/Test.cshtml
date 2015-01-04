@@ -2,12 +2,12 @@
 @{
     ViewBag.Title = "Index";
 }
-
 <h2>Index</h2>
-<ul>
-    @if (Model.Direcciones != null)
-    {
-        foreach (var item in Model.Direcciones)
+@if (Model.Direcciones != null)
+{
+    <h3>@Model.Direcciones.Count</h3>
+    <ul>
+        @foreach (var item in Model.Direcciones)
         {
             <li>
                 <span>@item.Street</span>
@@ -16,12 +16,14 @@
                 <span>@item.Date</span>
             </li>
         }
-    }
-    
-    @if (Model.DireccionesQM != null)
-    {
-        foreach (var item in Model.DireccionesQM)
+    </ul>
+}
+@if (Model.DireccionesQM != null)
+{
+    <ul>
+        @foreach (var item in Model.DireccionesQM)
         {
+
             <li>
                 <span>@item.Street</span>
                 <span>@item.Coordinates.X</span>
@@ -29,29 +31,34 @@
                 <span>@item.Date</span>
             </li>
         }
-    }
-    @if (Model.DireccionesQM2 != null)
-    {
-        foreach (var item in Model.DireccionesQM2)
+    </ul>
+}
+@if (Model.DireccionesQM2 != null)
+{
+    <ul>
+        @foreach (var item in Model.DireccionesQM2)
         {
-            <li>
-                <span>@item.Calle</span>
-                <span>@item.Referencia.XCoordinate</span>
-                <span>@item.Referencia.YCoordinate</span>
-                <span>@item.Fecha</span>
-            </li>
+                <li>
+                    <span>@item.Calle</span>
+                    <span>@item.Referencia.XCoordinate</span>
+                    <span>@item.Referencia.YCoordinate</span>
+                    <span>@item.Fecha</span>
+                </li>
         }
-    }
-    @if (Model.DireccionesMongo != null)
-    {
-        foreach (var item in Model.DireccionesMongo)
+    </ul>
+}
+@if (Model.DireccionesMongo != null)
+{
+    <h3>@Model.DireccionesMongo.Count</h3>
+    <ul>
+        @foreach (var item in Model.DireccionesMongo)
         {
             <li>
                 <span>@item.Street</span>
-                <span>@item.Coordinates.X</span>
-                <span>@item.Coordinates.Y</span>
+                <span>@item.Coordinates.Coordinates[0]</span>
+                <span>@item.Coordinates.Coordinates[1]</span>
                 <span>@item.Date</span>
             </li>
         }
-    }
-</ul>
+    </ul>
+}
